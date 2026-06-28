@@ -64,7 +64,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     private static final int REQ_MCPX = 100;
     private static final int REQ_BIOS = 101;
     private static final int REQ_HDD = 102;
-    private static final int REQ_DISC = 104;
     private static final int REQ_LIBRARY_TREE = 105;
     private static final String PREFS = "xboxemu_files";
     private static final String PREF_DISC_URI = "disc_uri";
@@ -217,10 +216,11 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         }
 
         if (getIntent().getBooleanExtra("autolaunch", false)) {
-            new Handler(Looper.getMainLooper()).postDelayed(this::launchEmulator, 1500);
+            uiHandler.postDelayed(this::launchEmulator, 1500);
         }
     }
 
+    @SuppressWarnings("deprecation")
     private void enterImmersiveMode() {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
@@ -411,19 +411,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         if (bios.isFile()) files.put(REQ_BIOS, bios);
         if (hdd.isFile()) files.put(REQ_HDD, hdd);
         loadDirectDiscSelection();
-        if (discSelection != null) {
-            return;
-        }
-        File[] candidates = dir.listFiles(file ->
-                file.isFile() &&
-                !file.getName().equals("mcpx.bin") &&
-                !file.getName().equals("bios.bin") &&
-                !file.getName().equals("hdd.img") &&
-                !file.getName().equals("eeprom.bin") &&
-                !file.getName().endsWith(".part"));
-        if (candidates != null && candidates.length > 0) {
-            files.put(REQ_DISC, candidates[0]);
-        }
     }
 
     private void loadDirectDiscSelection() {
@@ -438,6 +425,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
                 prefs.getLong(PREF_DISC_SIZE, -1));
     }
 
+    @SuppressWarnings("deprecation")
     private void bindPicker(int buttonId, int requestCode) {
         findViewById(buttonId).setOnClickListener(v -> {
             Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT);
@@ -449,6 +437,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         });
     }
 
+    @SuppressWarnings("deprecation")
     private void openLibraryFolderPicker() {
         Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
         intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
@@ -456,6 +445,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         startActivityForResult(intent, REQ_LIBRARY_TREE);
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
@@ -464,10 +454,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         }
         Uri uri = data.getData();
         tryPersistableReadPermission(data, uri);
-        if (requestCode == REQ_DISC) {
-            selectDirectDisc(uri);
-            return;
-        }
         if (requestCode == REQ_LIBRARY_TREE) {
             selectLibraryFolder(data, uri);
             return;
@@ -495,14 +481,12 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     }
 
     private File copyToPrivateFile(int requestCode, Uri uri) throws Exception {
-        String name = displayName(uri);
         long expectedSize = displaySize(uri);
         String suffix;
         switch (requestCode) {
             case REQ_MCPX: suffix = "mcpx.bin"; break;
             case REQ_BIOS: suffix = "bios.bin"; break;
             case REQ_HDD: suffix = "hdd.img"; break;
-            case REQ_DISC: suffix = name == null ? "disc.iso" : sanitize(name); break;
             default: suffix = "picked.bin";
         }
         File dir = new File(getFilesDir(), "xbox-files");
@@ -535,25 +519,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
             throw new IllegalStateException("Unable to finalize imported " + suffix);
         }
         return out;
-    }
-
-    private void selectDirectDisc(Uri uri) {
-        String name = safeDisplayName(uri);
-        long size = displaySize(uri);
-        discSelection = new DiscSelection(uri, name, size);
-        files.remove(REQ_DISC);
-        closeLaunchDiscPfd();
-        getSharedPreferences(PREFS, MODE_PRIVATE)
-                .edit()
-                .putString(PREF_DISC_URI, uri.toString())
-                .putString(PREF_DISC_NAME, name)
-                .putLong(PREF_DISC_SIZE, size)
-                .apply();
-        appendLog("Selected DISC direct: " + name + " (" + humanSize(size) + ")");
-        appendLog("DISC will be opened through SAF at launch, without copying to app storage.");
-        renderLibraryGames();
-        loadSelectedGameInfoAsync(discSelection);
-        refreshStatus();
     }
 
     private void selectLibraryFolder(Intent data, Uri treeUri) {
@@ -681,7 +646,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
 
     private void selectLibraryGame(LibraryGame game) {
         discSelection = new DiscSelection(game.uri, game.name, game.size);
-        files.remove(REQ_DISC);
         closeLaunchDiscPfd();
         settings().edit()
                 .putString(PREF_DISC_URI, game.uri.toString())
@@ -1171,7 +1135,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     private String openDirectDiscPathForLaunch() throws Exception {
         closeLaunchDiscPfd();
         if (discSelection == null) {
-            return path(REQ_DISC);
+            throw new IllegalStateException("No game disc selected");
         }
         launchDiscPfd = getContentResolver().openFileDescriptor(discSelection.uri, "r");
         if (launchDiscPfd == null) {
@@ -1268,7 +1232,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
             case REQ_MCPX: return "MCPX";
             case REQ_BIOS: return "BIOS";
             case REQ_HDD: return "HDD";
-            case REQ_DISC: return "DISC";
             default: return "file";
         }
     }
@@ -1288,7 +1251,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
             showSystemFilesScreen();
             return;
         }
-        if (discSelection == null && !files.containsKey(REQ_DISC)) {
+        if (discSelection == null) {
             appendLog("Play blocked: select a game from the library first.");
             showLibraryPanel();
             return;
@@ -1304,11 +1267,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         if (discSelection != null) {
             appendLog("DISC direct: " + discSelection.name + " (" + humanSize(discSelection.size) +
                     ") via " + discPath);
-        } else {
-            File disc = files.get(REQ_DISC);
-            if (disc != null) {
-                appendLog("DISC private copy: " + humanSize(disc.length()));
-            }
         }
         String result = NativeBridge.nativeLaunch(
                 path(REQ_MCPX),
@@ -1367,7 +1325,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
 
     private void ejectDiscSelection() {
         discSelection = null;
-        files.remove(REQ_DISC);
         closeLaunchDiscPfd();
         settings().edit()
                 .remove(PREF_DISC_URI)
@@ -1490,7 +1447,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         }
         updateTogglePanelButton();
         renderSurface.post(this::updateNativeSurfaceSize);
-        new Handler(Looper.getMainLooper()).postDelayed(this::updateNativeSurfaceSize, 150);
+        uiHandler.postDelayed(this::updateNativeSurfaceSize, 150);
     }
 
     private void showLibraryPanel() {
@@ -1502,7 +1459,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         libraryPanel.setVisibility(visible ? View.VISIBLE : View.GONE);
         updateTogglePanelButton();
         renderSurface.post(this::updateNativeSurfaceSize);
-        new Handler(Looper.getMainLooper()).postDelayed(this::updateNativeSurfaceSize, 150);
+        uiHandler.postDelayed(this::updateNativeSurfaceSize, 150);
     }
 
     private void updateTogglePanelButton() {
@@ -1544,14 +1501,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
 
     private boolean isSystemOperational() {
         return files.containsKey(REQ_MCPX) && files.containsKey(REQ_BIOS) && files.containsKey(REQ_HDD);
-    }
-
-    private String present(int key) {
-        if (key == REQ_DISC && discSelection != null) {
-            return discSelection.name + " (" + humanSize(discSelection.size) + ", direct)";
-        }
-        File file = files.get(key);
-        return file == null ? "missing" : file.getName() + " (" + humanSize(file.length()) + ")";
     }
 
     private void appendLog(String line) {
