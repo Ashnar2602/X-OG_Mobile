@@ -111,7 +111,9 @@
                 android:layout_height="0dp"
                 android:layout_marginTop="10dp"
                 android:layout_weight="1"
+                android:clipToPadding="false"
                 android:fillViewport="false"
+                android:paddingBottom="12dp"
                 android:visibility="gone">
 
                 <LinearLayout
@@ -225,48 +227,57 @@
                 </LinearLayout>
             </ScrollView>
 
-            <LinearLayout
+            <ScrollView
                 android:id="@+id/systemFilesControls"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="0dp"
                 android:layout_marginTop="10dp"
-                android:orientation="vertical"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:fillViewport="false"
+                android:paddingBottom="12dp"
                 android:visibility="gone">
 
-                <Button
-                    android:id="@+id/backToSettingsButton"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/back_to_settings" />
+                    android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:text="@string/system_files"
-                    android:textColor="@color/text"
-                    android:textSize="14sp"
-                    android:textStyle="bold" />
+                    <Button
+                        android:id="@+id/backToSettingsButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/back_to_settings" />
 
-                <Button
-                    android:id="@+id/pickMcpx"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:text="@string/pick_mcpx" />
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="@string/system_files"
+                        android:textColor="@color/text"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
 
-                <Button
-                    android:id="@+id/pickBios"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/pick_bios" />
+                    <Button
+                        android:id="@+id/pickMcpx"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="10dp"
+                        android:text="@string/pick_mcpx" />
 
-                <Button
-                    android:id="@+id/pickHdd"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:text="@string/pick_hdd" />
-            </LinearLayout>
+                    <Button
+                        android:id="@+id/pickBios"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/pick_bios" />
+
+                    <Button
+                        android:id="@+id/pickHdd"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="@string/pick_hdd" />
+                </LinearLayout>
+            </ScrollView>
 
             <FrameLayout
                 android:id="@+id/infoFrame"

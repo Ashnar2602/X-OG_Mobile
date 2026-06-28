@@ -1,6 +1,7 @@
 package emu.xbox.og;
 
 import android.app.Activity;
+import android.content.ActivityNotFoundException;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.database.Cursor;
@@ -95,6 +96,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     private View setupPanel;
     private View filesControls;
     private View settingsControls;
+    private View infoFrame;
     private Button togglePanelButton;
     private Button filesTabButton;
     private Button settingsTabButton;
@@ -155,6 +157,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         libraryPanel = findViewById(R.id.libraryPanel);
         filesControls = findViewById(R.id.filesControls);
         settingsControls = findViewById(R.id.settingsControls);
+        infoFrame = findViewById(R.id.infoFrame);
         systemFilesControls = findViewById(R.id.systemFilesControls);
         libraryStatusText = findViewById(R.id.libraryStatusText);
         gameList = findViewById(R.id.gameList);
@@ -331,6 +334,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         filesControls.setVisibility(showFiles ? View.VISIBLE : View.GONE);
         settingsControls.setVisibility(showFiles ? View.GONE : View.VISIBLE);
         systemFilesControls.setVisibility(View.GONE);
+        infoFrame.setVisibility(showFiles ? View.VISIBLE : View.GONE);
         filesTabButton.setEnabled(!showFiles);
         settingsTabButton.setEnabled(showFiles);
     }
@@ -339,6 +343,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         filesControls.setVisibility(View.GONE);
         settingsControls.setVisibility(View.VISIBLE);
         systemFilesControls.setVisibility(View.GONE);
+        infoFrame.setVisibility(View.GONE);
         filesTabButton.setEnabled(true);
         settingsTabButton.setEnabled(false);
     }
@@ -347,6 +352,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         filesControls.setVisibility(View.GONE);
         settingsControls.setVisibility(View.GONE);
         systemFilesControls.setVisibility(View.VISIBLE);
+        infoFrame.setVisibility(View.GONE);
         filesTabButton.setEnabled(true);
         settingsTabButton.setEnabled(true);
     }
@@ -433,7 +439,12 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
             intent.setType("*/*");
             intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION |
                     Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION);
-            startActivityForResult(intent, requestCode);
+            appendLog("Opening " + labelFor(requestCode) + " picker...");
+            try {
+                startActivityForResult(intent, requestCode);
+            } catch (ActivityNotFoundException e) {
+                appendLog("Picker unavailable: " + e.getMessage());
+            }
         });
     }
 
