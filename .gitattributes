@@ -1,0 +1,20 @@
+* text=auto
+
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+*.sh text eol=lf
+*.md text
+*.xml text
+*.gradle text
+*.java text
+*.c text
+*.cc text
+*.cpp text
+*.h text
+
+*.so binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.zip binary
+*.tar.gz binary

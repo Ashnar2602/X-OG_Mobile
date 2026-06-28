@@ -1,0 +1,34 @@
+# Local build outputs
+android/.gradle/
+android/build/
+android/app/build/
+android/app/.cxx/
+android/app/src/debug/
+
+# Vendored xemu build directories
+xemu/build/
+xemu/build-*/
+xemu/tests/
+xemu/subprojects/packagecache/
+xemu/subprojects/*/build/
+xemu/subprojects/json-3.2.0/benchmarks/
+
+# Locally downloaded toolchains/dependencies
+deps/
+
+# Local test/debug captures
+screen*.png
+ui-*.png
+disc-samples/
+
+# IDE and OS metadata
+.idea/
+.vscode/
+*.iml
+Thumbs.db
+.DS_Store
+
+# Logs and temporary files
+*.log
+*.tmp
+*.bak
