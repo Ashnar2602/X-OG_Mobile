@@ -21,7 +21,7 @@ produit un APK debug fonctionnel, car les bibliothèques natives Android précom
 android/app/src/main/jniLibs/arm64-v8a/
 ```
 
-Ces bibliothèques ont été compilées depuis l'arborescence xemu vendue avec le projet dans `xemu/`. Le core n'est pas un xemu stock : il contient des changements Android pour `ANativeWindow`, la présentation Vulkan, AAudio, l'entrée manette, les paramètres Android, l'arrêt ordonné, la pause et la reprise.
+Ces bibliothèques ont été compilées depuis l'arborescence xemu vendue avec le projet dans `xemu/`. Le core n'est pas un xemu stock : il contient des changements Android pour `ANativeWindow`, la présentation Vulkan, AAudio, l'entrée manette, les paramètres Android, l'arrêt ordonné, la pause et la reprise. Il inclut aussi un protocole block Android, `androidfd:`, afin que les disques sélectionnés via SAF soient lus depuis un file descriptor déjà ouvert, sans rouvrir `/proc/self/fd` ni copier l'ISO/XISO dans le stockage de l'application.
 
 L'arborescence xemu vendue avec le projet exclut volontairement les fixtures de test upstream, les répertoires de build locaux et les caches de paquets. Ils ne sont pas nécessaires à la build Android et certaines fixtures de test upstream contiennent des clés privées utilisées uniquement pour les tests.
 
@@ -42,7 +42,7 @@ xemu commit 92407546f45cf20f207a9facc89f515bf1a6c1c2
 - Interface Android native, package id `emu.xbox.og`
 - Android 10+ (`minSdk 29`), target SDK 36
 - ABI unique `arm64-v8a`
-- Sélection directe des jeux via SAF, sans copie de grandes ISO/XISO dans le stockage de l'application
+- Sélection directe des jeux via SAF et accès block xemu `androidfd:`, sans copie de grandes ISO/XISO dans le stockage de l'application
 - Import privé de MCPX, BIOS et image HDD
 - EEPROM générée par xemu
 - Chemin renderer Vulkan Android

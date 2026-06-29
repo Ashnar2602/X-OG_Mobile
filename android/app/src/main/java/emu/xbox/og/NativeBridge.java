@@ -14,7 +14,7 @@ final class NativeBridge {
     static native void nativeSurfaceCreated(Surface surface, int width, int height);
     static native void nativeSurfaceChanged(Surface surface, int width, int height);
     static native void nativeSurfaceDestroyed();
-    static native String nativeLaunch(String mcpx, String bios, String hdd, String disc,
+    static native String nativeLaunch(String mcpx, String bios, String hdd, int discFd,
                                       String renderer, int audioVolume, boolean audioMuted,
                                       boolean skipBootAnimation, String avpack);
     static native void nativeSetButton(int button, boolean pressed);

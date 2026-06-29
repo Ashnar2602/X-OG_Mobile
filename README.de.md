@@ -21,7 +21,7 @@ erstellt ein funktionierendes Debug-APK, weil die vorkompilierten nativen Androi
 android/app/src/main/jniLibs/arm64-v8a/
 ```
 
-Diese Bibliotheken wurden aus dem vendorizierten xemu-Quellbaum in `xemu/` gebaut. Der Core ist kein unverändertes xemu: Er enthält Android-spezifische Änderungen für `ANativeWindow`, Vulkan-Präsentation, AAudio, Controller-Eingabe, Android-Einstellungen, geordnetes Herunterfahren, Pause und Fortsetzen.
+Diese Bibliotheken wurden aus dem vendorizierten xemu-Quellbaum in `xemu/` gebaut. Der Core ist kein unverändertes xemu: Er enthält Android-spezifische Änderungen für `ANativeWindow`, Vulkan-Präsentation, AAudio, Controller-Eingabe, Android-Einstellungen, geordnetes Herunterfahren, Pause und Fortsetzen. Außerdem enthält er ein Android-Blockprotokoll, `androidfd:`, damit über SAF ausgewählte Discs aus einem bereits geöffneten File Descriptor gelesen werden, ohne `/proc/self/fd` erneut zu öffnen oder die ISO/XISO in den App-Speicher zu kopieren.
 
 Der vendorizierte xemu-Baum schließt upstream-Test-Fixtures, lokale Build-Verzeichnisse und Paket-Caches bewusst aus. Sie werden für den Android-App-Build nicht benötigt, und einige upstream-Test-Fixtures enthalten private Schlüssel, die nur für Tests verwendet werden.
 
@@ -42,7 +42,7 @@ xemu commit 92407546f45cf20f207a9facc89f515bf1a6c1c2
 - Native Android-Oberfläche, package id `emu.xbox.og`
 - Android 10+ (`minSdk 29`), target SDK 36
 - Nur `arm64-v8a`
-- Direkte Spielauswahl über SAF, ohne große ISO/XISO-Dateien in den App-Speicher zu kopieren
+- Direkte Spielauswahl über SAF und xemu-Blockzugriff `androidfd:`, ohne große ISO/XISO-Dateien in den App-Speicher zu kopieren
 - App-privater Import für MCPX, BIOS und HDD-Image
 - Von xemu erzeugte EEPROM-Datei
 - Android-Vulkan-Rendererpfad

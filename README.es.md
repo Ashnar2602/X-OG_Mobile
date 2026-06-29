@@ -21,7 +21,7 @@ se genera un APK debug funcional porque las bibliotecas nativas Android precompi
 android/app/src/main/jniLibs/arm64-v8a/
 ```
 
-Esas bibliotecas se compilaron desde el árbol xemu vendorizado en `xemu/`. El core no es xemu stock: contiene cambios específicos para Android, como `ANativeWindow`, presentación Vulkan, AAudio, entrada de mando, ajustes Android, apagado ordenado, pausa y reanudación.
+Esas bibliotecas se compilaron desde el árbol xemu vendorizado en `xemu/`. El core no es xemu stock: contiene cambios específicos para Android, como `ANativeWindow`, presentación Vulkan, AAudio, entrada de mando, ajustes Android, apagado ordenado, pausa y reanudación. También incluye un protocolo block Android, `androidfd:`, para que los discos seleccionados mediante SAF se lean desde un file descriptor ya abierto, sin reabrir `/proc/self/fd` ni copiar la ISO/XISO al almacenamiento de la app.
 
 El árbol xemu vendorizado excluye intencionadamente fixtures de prueba upstream, directorios de build locales y cachés de paquetes. No son necesarios para la build Android y algunas fixtures de prueba upstream contienen claves privadas usadas solo para tests.
 
@@ -42,7 +42,7 @@ xemu commit 92407546f45cf20f207a9facc89f515bf1a6c1c2
 - UI Android nativa, package id `emu.xbox.og`
 - Android 10+ (`minSdk 29`), target SDK 36
 - Solo ABI `arm64-v8a`
-- Selección directa de juegos mediante SAF, sin copiar grandes ISO/XISO al almacenamiento de la app
+- Selección directa de juegos mediante SAF y acceso block xemu `androidfd:`, sin copiar grandes ISO/XISO al almacenamiento de la app
 - Importación privada para MCPX, BIOS e imagen HDD
 - EEPROM generada por xemu
 - Ruta de renderer Vulkan para Android

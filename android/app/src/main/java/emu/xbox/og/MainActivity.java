@@ -1143,7 +1143,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         return clean;
     }
 
-    private String openDirectDiscPathForLaunch() throws Exception {
+    private int openDirectDiscFdForLaunch() throws Exception {
         closeLaunchDiscPfd();
         if (discSelection == null) {
             throw new IllegalStateException("No game disc selected");
@@ -1157,7 +1157,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
             appendLog("DISC size changed: picker said " + humanSize(discSelection.size) +
                     ", fd says " + humanSize(statSize));
         }
-        return "/proc/self/fd/" + launchDiscPfd.getFd();
+        return launchDiscPfd.getFd();
     }
 
     private void closeLaunchDiscPfd() {
@@ -1268,22 +1268,22 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
             return;
         }
         appendLog("Play pressed. Validating selected files before native core start...");
-        String discPath;
+        int discFd;
         try {
-            discPath = openDirectDiscPathForLaunch();
+            discFd = openDirectDiscFdForLaunch();
         } catch (Exception e) {
             appendLog("Launch blocked: " + e.getMessage());
             return;
         }
         if (discSelection != null) {
             appendLog("DISC direct: " + discSelection.name + " (" + humanSize(discSelection.size) +
-                    ") via " + discPath);
+                    ") via SAF fd " + discFd);
         }
         String result = NativeBridge.nativeLaunch(
                 path(REQ_MCPX),
                 path(REQ_BIOS),
                 path(REQ_HDD),
-                discPath,
+                discFd,
                 settingString(PREF_RENDERER, "vulkan"),
                 settingInt(PREF_AUDIO_VOLUME, 100),
                 settingBoolean(PREF_AUDIO_MUTED, false),

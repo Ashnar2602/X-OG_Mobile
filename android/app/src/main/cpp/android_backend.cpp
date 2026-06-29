@@ -286,7 +286,7 @@ Java_emu_xbox_og_NativeBridge_nativeSurfaceDestroyed(JNIEnv *, jclass) {
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_emu_xbox_og_NativeBridge_nativeLaunch(JNIEnv *env, jclass, jstring mcpx, jstring bios,
-                                           jstring hdd, jstring disc, jstring renderer,
+                                           jstring hdd, jint disc_fd, jstring renderer,
                                            jint audio_volume, jboolean audio_muted,
                                            jboolean skip_boot_animation, jstring avpack) {
     std::unique_lock<std::mutex> guard(g_lock);
@@ -295,7 +295,9 @@ Java_emu_xbox_og_NativeBridge_nativeLaunch(JNIEnv *env, jclass, jstring mcpx, js
     const std::string mcpx_path = jstr(env, mcpx);
     const std::string bios_path = jstr(env, bios);
     const std::string hdd_path = jstr(env, hdd);
-    const std::string disc_path = jstr(env, disc);
+    const std::string disc_path = disc_fd >= 0
+            ? "androidfd:" + std::to_string(static_cast<int>(disc_fd))
+            : "";
     const std::string renderer_value = jstr(env, renderer);
     const std::string avpack_value = jstr(env, avpack);
 

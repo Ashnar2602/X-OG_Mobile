@@ -4132,11 +4132,13 @@ subdir('bsd-user')
 subdir('linux-user')
 
 # needed for fuzzing binaries
-subdir('tests/qtest/libqos')
-subdir('tests/qtest/fuzz')
+if host_os != 'android'
+  subdir('tests/qtest/libqos')
+  subdir('tests/qtest/fuzz')
 
-# accel modules
-target_modules += { 'accel' : { 'qtest': qtest_module_ss }}
+  # accel modules
+  target_modules += { 'accel' : { 'qtest': qtest_module_ss }}
+endif
 
 ##############################################
 # Internal static_libraries and dependencies #
@@ -4839,8 +4841,9 @@ subdir('tools')
 subdir('pc-bios')
 subdir('docs')
 # Tests are disabled on emscripten because they rely on host features that aren't
-# supported by emscripten (e.g. fork and unix socket).
-if host_os != 'emscripten'
+# supported by emscripten (e.g. fork and unix socket). The Android mobile port
+# vendors xemu without the tests tree, so keep test targets out of that build too.
+if host_os != 'emscripten' and host_os != 'android'
   subdir('tests')
 endif
 if gtk.found()
