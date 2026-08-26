@@ -1666,6 +1666,7 @@ static void pgraph_vk_android_present(PGRAPHState *pg)
     }
 
     disp->present_count++;
+    xemu_android_mark_frame_presented();
     if ((disp->present_count % 60) == 1) {
         xemu_android_log_info("Android Vulkan presented frame=%d source=%dx%d target=%ux%u viewport=%ux%u+%u+%u",
                               disp->present_count, disp->width, disp->height,

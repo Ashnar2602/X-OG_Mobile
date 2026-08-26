@@ -170,9 +170,12 @@ cp -f "$SRC/subprojects/volk/meson.build" "$SRCCOPY/subprojects/volk/meson.build
 echo "subprojects ready"
 
 echo "== [5/6] Configure + build"
-rm -rf "$BUILD"
+# Keep the build directory across runs: ninja re-runs configure
+# automatically when meson.build changes, so core patches rebuild
+# incrementally.
 mkdir -p "$BUILD"
 cd "$BUILD"
+if [[ ! -f build.ninja ]]; then
 export PKG_CONFIG=pkg-config
 # Meson finds cmake only via env var / machine files, not PATH scan.
 export CMAKE=/usr/bin/cmake
@@ -229,6 +232,7 @@ bash "$SRCCOPY/configure" \
   --extra-cflags="-DXBOX=1 -I$PREFIX/include -mbranch-protection=none -fno-sanitize=safe-stack" \
   --extra-cxxflags="-mbranch-protection=none -fno-sanitize=safe-stack" \
   --extra-ldflags="-L$PREFIX/lib -mbranch-protection=none"
+fi
 
 ninja qemu-system-i386 libxemu-core-i386.so
 

@@ -14,6 +14,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
+import android.os.SystemClock;
 import android.provider.DocumentsContract;
 import android.provider.OpenableColumns;
 import android.text.Editable;
@@ -50,6 +51,7 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.net.HttpURLConnection;
 import java.net.URLEncoder;
@@ -133,12 +135,55 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     private Button pauseButton;
     private View pauseOverlay;
     private View idleOverlay;
+    private TextView fpsCounter;
     private Handler uiHandler;
     private final Runnable idleAutoPauseRunnable = () -> {
         if (NativeBridge.nativeIsRunning() && !emulationPaused) {
             requestPause("Auto-paused after input inactivity.", true);
         }
     };
+
+    private static final long FPS_SAMPLE_INTERVAL_MS = 500;
+    private long fpsLastSampleUptimeMs;
+    private long fpsLastProduced;
+    private long fpsLastPresented;
+    private final Runnable fpsUpdateRunnable = new Runnable() {
+        @Override
+        public void run() {
+            updateFpsCounter();
+            uiHandler.postDelayed(this, FPS_SAMPLE_INTERVAL_MS);
+        }
+    };
+
+    private void updateFpsCounter() {
+        if (fpsCounter == null) {
+            return;
+        }
+        if (!NativeBridge.nativeIsRunning()) {
+            fpsCounter.setText("FPS: -- / --");
+            fpsLastSampleUptimeMs = 0;
+            return;
+        }
+        long[] stats = NativeBridge.nativeGetFrameStats();
+        long now = SystemClock.uptimeMillis();
+        if (fpsLastSampleUptimeMs == 0) {
+            // First sample after (re)start: nothing to diff against yet.
+            fpsLastSampleUptimeMs = now;
+            fpsLastProduced = stats[0];
+            fpsLastPresented = stats[1];
+            return;
+        }
+        double elapsedSec = (now - fpsLastSampleUptimeMs) / 1000.0;
+        if (elapsedSec <= 0) {
+            return;
+        }
+        double producedFps = (stats[0] - fpsLastProduced) / elapsedSec;
+        double presentedFps = (stats[1] - fpsLastPresented) / elapsedSec;
+        fpsCounter.setText(String.format(Locale.US, "FPS: %.0f / %.0f", producedFps, presentedFps));
+        fpsLastSampleUptimeMs = now;
+        fpsLastProduced = stats[0];
+        fpsLastPresented = stats[1];
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -182,6 +227,8 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         pauseButton = findViewById(R.id.pauseButton);
         pauseOverlay = findViewById(R.id.pauseOverlay);
         idleOverlay = findViewById(R.id.idleOverlay);
+        fpsCounter = findViewById(R.id.fpsCounter);
+        uiHandler.post(fpsUpdateRunnable);
 
         bindPicker(R.id.pickMcpx, REQ_MCPX);
         bindPicker(R.id.pickBios, REQ_BIOS);
@@ -1603,6 +1650,9 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         cancelIdleAutoPause();
         closeLaunchDiscPfd();
         releaseCurrentSurface();
+        if (uiHandler != null) {
+            uiHandler.removeCallbacks(fpsUpdateRunnable);
+        }
         super.onDestroy();
     }
 

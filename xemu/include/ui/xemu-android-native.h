@@ -30,6 +30,18 @@ void xemu_android_request_shutdown(void);
 void xemu_android_request_pause(void);
 void xemu_android_request_resume(void);
 
+/*
+ * Frame counters for the on-screen "FPS: produced / shown" overlay.
+ * "Produced" increments once per guest flip-stall (a real frame the game
+ * finished rendering); "presented" increments once per successful
+ * vkQueuePresentKHR (a frame actually pushed to the display swapchain).
+ * Comparing their rates tells apart a guest-side stall from the host
+ * dropping frames it already had ready.
+ */
+void xemu_android_mark_frame_produced(void);
+void xemu_android_mark_frame_presented(void);
+void xemu_android_get_frame_stats(uint64_t *produced, uint64_t *presented);
+
 #ifdef __cplusplus
 }
 #endif

@@ -17,6 +17,7 @@
 #include <condition_variable>
 #include <array>
 #include <atomic>
+#include <cstdint>
 #include <mutex>
 #include <sstream>
 #include <string>
@@ -36,6 +37,7 @@ extern "C" void xemu_android_audio_set_volume(float volume);
 extern "C" void xemu_android_request_shutdown(void);
 extern "C" void xemu_android_request_pause(void);
 extern "C" void xemu_android_request_resume(void);
+extern "C" void xemu_android_get_frame_stats(uint64_t *produced, uint64_t *presented);
 
 namespace {
 std::mutex g_lock;
@@ -482,4 +484,15 @@ Java_emu_xbox_og_NativeBridge_nativeStop(JNIEnv *env, jclass, jint timeout_ms) {
 extern "C" JNIEXPORT jboolean JNICALL
 Java_emu_xbox_og_NativeBridge_nativeIsRunning(JNIEnv *, jclass) {
     return g_xemu_running.load() ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C" JNIEXPORT jlongArray JNICALL
+Java_emu_xbox_og_NativeBridge_nativeGetFrameStats(JNIEnv *env, jclass) {
+    uint64_t produced = 0;
+    uint64_t presented = 0;
+    xemu_android_get_frame_stats(&produced, &presented);
+    jlongArray result = env->NewLongArray(2);
+    jlong values[2] = {static_cast<jlong>(produced), static_cast<jlong>(presented)};
+    env->SetLongArrayRegion(result, 0, 2, values);
+    return result;
 }

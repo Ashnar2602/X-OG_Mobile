@@ -24,6 +24,8 @@ final class NativeBridge {
     static native String nativeResume();
     static native String nativeStop(int timeoutMs);
     static native boolean nativeIsRunning();
+    // [produced, presented] cumulative counts; see xemu_android_get_frame_stats.
+    static native long[] nativeGetFrameStats();
 
     // TODO(savestate): expose nativeSaveState/nativeLoadState/nativeListStates once
     // the Android UI has a real snapshot manager instead of placeholder buttons.

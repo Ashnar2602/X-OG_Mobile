@@ -156,6 +156,7 @@ static void pgraph_vk_flip_stall(NV2AState *d)
     if ((android_flip_count % 60) == 1) {
         xemu_android_log_info("Android Vulkan flip frame=%d", android_flip_count);
     }
+    xemu_android_mark_frame_produced();
     pgraph_vk_render_display(&d->pgraph);
 #endif
     pgraph_vk_debug_frame_terminator();

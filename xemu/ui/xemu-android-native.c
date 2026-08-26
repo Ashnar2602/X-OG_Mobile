@@ -20,15 +20,29 @@ static bool lock_initialized;
 
 #define ANDROID_AUDIO_CHANNELS 2
 #define ANDROID_AUDIO_SAMPLE_RATE 48000
-#define ANDROID_AUDIO_RING_FRAMES 8192
+#define ANDROID_AUDIO_RING_FRAMES 8192 /* power of 2: enables mask indexing */
+#define ANDROID_AUDIO_RING_MASK (ANDROID_AUDIO_RING_FRAMES - 1)
 
+/*
+ * audio_lock only guards audio_stream's lifecycle (init/shutdown) and is
+ * never held across the ring buffer read/write below. The ring itself is a
+ * lock-free SPSC queue: audio_write_pos is only ever written by the APU
+ * producer thread, audio_read_pos only by the AAudio real-time callback
+ * thread. Each side publishes its own cursor with a release store and
+ * observes the other with an acquire load. This matters because the
+ * producer runs at normal priority and can be starved for tens of ms by
+ * the DSP interpreter under load; if it held a mutex the RT callback also
+ * needed, that would be priority inversion, stalling the callback past
+ * its ~5.3ms deadline and making AAudio insert silence (heard as audio
+ * cutting in and out while video stayed smooth). The atomics avoid that:
+ * the callback never waits on the producer.
+ */
 static QemuMutex audio_lock;
 static bool audio_lock_initialized;
 static AAudioStream *audio_stream;
 static int16_t audio_ring[ANDROID_AUDIO_RING_FRAMES][ANDROID_AUDIO_CHANNELS];
-static size_t audio_read_pos;
-static size_t audio_write_pos;
-static size_t audio_queued_frames;
+static uint32_t audio_read_pos;  /* owned by the AAudio callback thread */
+static uint32_t audio_write_pos; /* owned by the APU producer thread */
 
 static void ensure_lock(void)
 {
@@ -116,35 +130,69 @@ void xemu_android_log_warn(const char *fmt, ...)
     va_end(ap);
 }
 
+/*
+ * Frame counters for the FPS overlay. Each has exactly one writer thread
+ * (the PGRAPH thread for both, in practice), so the local running total is
+ * plain, non-atomic; only the published copy the UI thread polls needs the
+ * atomic release/acquire pair.
+ */
+static uint64_t frame_produced_total;
+static uint64_t frame_presented_total;
+static uint64_t frame_produced_published;
+static uint64_t frame_presented_published;
+
+void xemu_android_mark_frame_produced(void)
+{
+    frame_produced_total++;
+    qatomic_store_release(&frame_produced_published, frame_produced_total);
+}
+
+void xemu_android_mark_frame_presented(void)
+{
+    frame_presented_total++;
+    qatomic_store_release(&frame_presented_published, frame_presented_total);
+}
+
+void xemu_android_get_frame_stats(uint64_t *produced, uint64_t *presented)
+{
+    if (produced) {
+        *produced = qatomic_load_acquire(&frame_produced_published);
+    }
+    if (presented) {
+        *presented = qatomic_load_acquire(&frame_presented_published);
+    }
+}
+
 static void reset_audio_ring_locked(void)
 {
-    audio_read_pos = 0;
-    audio_write_pos = 0;
-    audio_queued_frames = 0;
+    qatomic_set(&audio_read_pos, 0);
+    qatomic_set(&audio_write_pos, 0);
 }
 
 static aaudio_data_callback_result_t xemu_android_audio_data_callback(
     AAudioStream *stream, void *user_data, void *audio_data, int32_t num_frames)
 {
     int16_t *out = audio_data;
+    uint32_t rpos = audio_read_pos;
+    uint32_t wpos = qatomic_load_acquire(&audio_write_pos);
+    uint32_t available = wpos - rpos;
 
     (void)stream;
     (void)user_data;
 
-    ensure_audio_lock();
-    qemu_mutex_lock(&audio_lock);
     for (int32_t i = 0; i < num_frames; i++) {
-        if (audio_queued_frames > 0) {
-            out[i * 2] = audio_ring[audio_read_pos][0];
-            out[i * 2 + 1] = audio_ring[audio_read_pos][1];
-            audio_read_pos = (audio_read_pos + 1) % ANDROID_AUDIO_RING_FRAMES;
-            audio_queued_frames--;
+        if (available > 0) {
+            uint32_t idx = rpos & ANDROID_AUDIO_RING_MASK;
+            out[i * 2] = audio_ring[idx][0];
+            out[i * 2 + 1] = audio_ring[idx][1];
+            rpos++;
+            available--;
         } else {
             out[i * 2] = 0;
             out[i * 2 + 1] = 0;
         }
     }
-    qemu_mutex_unlock(&audio_lock);
+    qatomic_store_release(&audio_read_pos, rpos);
 
     return AAUDIO_CALLBACK_RESULT_CONTINUE;
 }
@@ -228,45 +276,53 @@ void xemu_android_audio_shutdown(void)
 
 void xemu_android_audio_queue(const int16_t *samples, size_t frames)
 {
+    uint32_t wpos, rpos, free_frames;
+
     if (!samples || frames == 0) {
         return;
     }
 
     ensure_audio_lock();
     qemu_mutex_lock(&audio_lock);
-    if (!audio_stream) {
-        qemu_mutex_unlock(&audio_lock);
+    bool active = (audio_stream != NULL);
+    qemu_mutex_unlock(&audio_lock);
+    if (!active) {
         return;
     }
 
-    for (size_t i = 0; i < frames; i++) {
-        if (audio_queued_frames == ANDROID_AUDIO_RING_FRAMES) {
-            audio_read_pos = (audio_read_pos + 1) % ANDROID_AUDIO_RING_FRAMES;
-            audio_queued_frames--;
-        }
-        audio_ring[audio_write_pos][0] = samples[i * 2];
-        audio_ring[audio_write_pos][1] = samples[i * 2 + 1];
-        audio_write_pos = (audio_write_pos + 1) % ANDROID_AUDIO_RING_FRAMES;
-        audio_queued_frames++;
+    wpos = audio_write_pos;
+    rpos = qatomic_load_acquire(&audio_read_pos);
+    free_frames = ANDROID_AUDIO_RING_FRAMES - (wpos - rpos);
+    if (frames > free_frames) {
+        /* Ring full (should be rare: apu.c throttles on the high
+         * watermark well before this). Drop the newest samples rather
+         * than the consumer-owned read cursor. */
+        frames = free_frames;
     }
-    qemu_mutex_unlock(&audio_lock);
+
+    for (size_t i = 0; i < frames; i++) {
+        uint32_t idx = wpos & ANDROID_AUDIO_RING_MASK;
+        audio_ring[idx][0] = samples[i * 2];
+        audio_ring[idx][1] = samples[i * 2 + 1];
+        wpos++;
+    }
+    qatomic_store_release(&audio_write_pos, wpos);
 }
 
 int xemu_android_audio_queued_bytes(void)
 {
-    int queued;
-
     ensure_audio_lock();
     qemu_mutex_lock(&audio_lock);
-    if (!audio_stream) {
-        queued = -1;
-    } else {
-        queued = audio_queued_frames * ANDROID_AUDIO_CHANNELS *
-                 sizeof(audio_ring[0][0]);
-    }
+    bool active = (audio_stream != NULL);
     qemu_mutex_unlock(&audio_lock);
+    if (!active) {
+        return -1;
+    }
 
-    return queued;
+    uint32_t wpos = audio_write_pos;
+    uint32_t rpos = qatomic_load_acquire(&audio_read_pos);
+    return (int)((wpos - rpos) * ANDROID_AUDIO_CHANNELS *
+                 sizeof(audio_ring[0][0]));
 }
 
 void xemu_android_audio_set_volume(float volume)

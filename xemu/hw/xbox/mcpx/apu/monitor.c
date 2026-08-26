@@ -27,8 +27,17 @@ void mcpx_apu_monitor_init(MCPXAPUState *d, Error **errp)
 {
 #ifdef __ANDROID__
     d->monitor.stream = xemu_android_audio_init() ? (void *)1 : NULL;
-    d->monitor.queued_bytes_low = sizeof(d->monitor.frame_buf);
-    d->monitor.queued_bytes_high = 3 * sizeof(d->monitor.frame_buf);
+    /*
+     * Keep a healthy cushion inside the audio ring. The AAudio callback
+     * drains 256 frames every ~5.3ms; under TCG load the APU producer
+     * thread can be delayed by tens of milliseconds, so tiny watermarks
+     * (the previous 1KB/3KB = ~5/16ms) let the ring run dry, producing
+     * intermittent silence. 30ms low / 90ms high trades a little extra
+     * latency for dropout resistance. The ring itself holds 8192 frames.
+     */
+    int android_frame_bytes = 2 * sizeof(int16_t);
+    d->monitor.queued_bytes_low = (48000 / 1000) * 30 * android_frame_bytes;
+    d->monitor.queued_bytes_high = (48000 / 1000) * 90 * android_frame_bytes;
 #else
     SDL_AudioSpec spec = {
         .freq = 48000,
