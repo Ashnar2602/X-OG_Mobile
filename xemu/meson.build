@@ -4132,8 +4132,10 @@ subdir('bsd-user')
 subdir('linux-user')
 
 # needed for fuzzing binaries
-subdir('tests/qtest/libqos')
-subdir('tests/qtest/fuzz')
+if fs.exists('tests/qtest/libqos/meson.build')
+  subdir('tests/qtest/libqos')
+  subdir('tests/qtest/fuzz')
+endif
 
 # accel modules
 target_modules += { 'accel' : { 'qtest': qtest_module_ss }}
@@ -4839,8 +4841,9 @@ subdir('tools')
 subdir('pc-bios')
 subdir('docs')
 # Tests are disabled on emscripten because they rely on host features that aren't
-# supported by emscripten (e.g. fork and unix socket).
-if host_os != 'emscripten'
+# supported by emscripten (e.g. fork and unix socket). They are also skipped when
+# the vendored tree ships without the tests directory.
+if host_os != 'emscripten' and fs.exists('tests/meson.build')
   subdir('tests')
 endif
 if gtk.found()
