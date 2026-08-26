@@ -148,6 +148,39 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     private long fpsLastSampleUptimeMs;
     private long fpsLastProduced;
     private long fpsLastPresented;
+
+    // Detects a stuck guest (busy threads, zero new frames) independently of
+    // whether we think we're paused, so a resume that silently fails to
+    // actually resume emulation gets logged instead of just staring at a
+    // frozen screen. See docs/known-issues/ for context if this fires.
+    private static final long STALL_WATCHDOG_MS = 3_000;
+    private static final long STALL_WATCHDOG_RELOG_MS = 5_000;
+    private long watchdogLastProduced = -1;
+    private long watchdogLastChangeUptimeMs;
+    private long watchdogLastLogUptimeMs;
+
+    private void checkFrameWatchdog(long producedNow) {
+        long now = SystemClock.uptimeMillis();
+        if (watchdogLastProduced != producedNow) {
+            watchdogLastProduced = producedNow;
+            watchdogLastChangeUptimeMs = now;
+            watchdogLastLogUptimeMs = 0;
+            return;
+        }
+        if (watchdogLastChangeUptimeMs == 0 || emulationPaused) {
+            return;
+        }
+        long stalledForMs = now - watchdogLastChangeUptimeMs;
+        if (stalledForMs < STALL_WATCHDOG_MS) {
+            return;
+        }
+        if (watchdogLastLogUptimeMs != 0 && now - watchdogLastLogUptimeMs < STALL_WATCHDOG_RELOG_MS) {
+            return;
+        }
+        watchdogLastLogUptimeMs = now;
+        NativeBridge.nativeLogWatchdogSnapshot(
+                "no new guest frame in " + (stalledForMs / 1000) + "s, emulationPaused=" + emulationPaused);
+    }
     private final Runnable fpsUpdateRunnable = new Runnable() {
         @Override
         public void run() {
@@ -163,9 +196,11 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         if (!NativeBridge.nativeIsRunning()) {
             fpsCounter.setText("FPS: -- / --");
             fpsLastSampleUptimeMs = 0;
+            watchdogLastProduced = -1;
             return;
         }
         long[] stats = NativeBridge.nativeGetFrameStats();
+        checkFrameWatchdog(stats[0]);
         long now = SystemClock.uptimeMillis();
         if (fpsLastSampleUptimeMs == 0) {
             // First sample after (re)start: nothing to diff against yet.
@@ -1623,15 +1658,21 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     @Override
     protected void onPause() {
         super.onPause();
+        Log.i(TAG, "Activity onPause: running=" + NativeBridge.nativeIsRunning()
+                + " emulationPaused=" + emulationPaused);
         if (NativeBridge.nativeIsRunning()) {
             lifecyclePausedCore = true;
             requestPause("Paused while app is in background.", false);
         }
+        Log.i(TAG, "Activity onPause done: emulationPaused=" + emulationPaused
+                + " lifecyclePausedCore=" + lifecyclePausedCore);
     }
 
     @Override
     protected void onResume() {
         super.onResume();
+        Log.i(TAG, "Activity onResume: running=" + NativeBridge.nativeIsRunning()
+                + " emulationPaused=" + emulationPaused + " lifecyclePausedCore=" + lifecyclePausedCore);
         enterImmersiveMode();
         updateEmulationUi();
         if (lifecyclePausedCore && NativeBridge.nativeIsRunning()) {

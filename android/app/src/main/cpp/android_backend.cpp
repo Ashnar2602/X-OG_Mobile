@@ -38,6 +38,7 @@ extern "C" void xemu_android_request_shutdown(void);
 extern "C" void xemu_android_request_pause(void);
 extern "C" void xemu_android_request_resume(void);
 extern "C" void xemu_android_get_frame_stats(uint64_t *produced, uint64_t *presented);
+extern "C" void xemu_android_log_watchdog_snapshot(const char *reason);
 
 namespace {
 std::mutex g_lock;
@@ -495,4 +496,10 @@ Java_emu_xbox_og_NativeBridge_nativeGetFrameStats(JNIEnv *env, jclass) {
     jlong values[2] = {static_cast<jlong>(produced), static_cast<jlong>(presented)};
     env->SetLongArrayRegion(result, 0, 2, values);
     return result;
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_emu_xbox_og_NativeBridge_nativeLogWatchdogSnapshot(JNIEnv *env, jclass, jstring reason) {
+    std::string r = jstr(env, reason);
+    xemu_android_log_watchdog_snapshot(r.c_str());
 }

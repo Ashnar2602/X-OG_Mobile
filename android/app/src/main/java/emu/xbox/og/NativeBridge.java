@@ -26,6 +26,8 @@ final class NativeBridge {
     static native boolean nativeIsRunning();
     // [produced, presented] cumulative counts; see xemu_android_get_frame_stats.
     static native long[] nativeGetFrameStats();
+    // Diagnostic-only: logs QEMU runstate/vmstop/clock state to logcat.
+    static native void nativeLogWatchdogSnapshot(String reason);
 
     // TODO(savestate): expose nativeSaveState/nativeLoadState/nativeListStates once
     // the Android UI has a real snapshot manager instead of placeholder buttons.

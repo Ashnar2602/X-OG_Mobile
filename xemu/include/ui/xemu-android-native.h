@@ -42,6 +42,12 @@ void xemu_android_mark_frame_produced(void);
 void xemu_android_mark_frame_presented(void);
 void xemu_android_get_frame_stats(uint64_t *produced, uint64_t *presented);
 
+/*
+ * Diagnostic-only: logs QEMU runstate/vmstop/clock state to logcat, tagged
+ * with `reason`. Safe to call from any thread; never has side effects.
+ */
+void xemu_android_log_watchdog_snapshot(const char *reason);
+
 #ifdef __cplusplus
 }
 #endif

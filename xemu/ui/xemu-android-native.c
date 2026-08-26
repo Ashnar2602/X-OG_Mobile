@@ -9,6 +9,7 @@
 #include <stdarg.h>
 
 #include "qemu/main-loop.h"
+#include "qemu/timer.h"
 #include "system/runstate.h"
 #include "qemu/thread.h"
 #include "ui/xemu-settings.h"
@@ -342,6 +343,7 @@ void xemu_android_request_shutdown(void)
 void xemu_android_request_pause(void)
 {
     xemu_android_log_info("Android requested VM pause");
+    xemu_android_log_watchdog_snapshot("before pause request");
     BQL_LOCK_GUARD();
     qemu_system_vmstop_request_prepare();
     qemu_system_vmstop_request(RUN_STATE_PAUSED);
@@ -353,8 +355,32 @@ void xemu_android_request_resume(void)
     if (runstate_check(RUN_STATE_PAUSED)) {
         xemu_android_log_info("Android requested VM resume");
         vm_start();
+        xemu_android_log_watchdog_snapshot("immediately after vm_start()");
     } else {
         xemu_android_log_info("Android resume ignored: VM is not paused");
     }
+}
+
+/*
+ * Diagnostic-only, best-effort state dump for the "no frame produced after
+ * resume" watchdog (see MainActivity.checkFrameWatchdog). Reads QEMU's
+ * runstate/vmstop/clock state without the BQL: these are simple global
+ * reads QEMU itself expects to be pollable from any thread for exactly this
+ * kind of monitoring, so a torn read here can at worst produce one
+ * misleading log line, not a crash. Never call vm_start()/vm_stop() or
+ * anything else with side effects from here.
+ */
+void xemu_android_log_watchdog_snapshot(const char *reason)
+{
+    RunState vmstop_target = RUN_STATE_RUNNING;
+    bool vmstop_pending = qemu_vmstop_requested(&vmstop_target);
+    int64_t virt_ms = qemu_clock_get_ns(QEMU_CLOCK_VIRTUAL) / 1000000;
+    int64_t real_ms = qemu_clock_get_ns(QEMU_CLOCK_REALTIME) / 1000000;
+    xemu_android_log_warn(
+        "Watchdog (%s): runstate=%d running=%d vmstop_pending=%d(target=%d) "
+        "virtual_clock_ms=%lld real_clock_ms=%lld",
+        reason, (int)runstate_get(), runstate_is_running(),
+        vmstop_pending, (int)vmstop_target,
+        (long long)virt_ms, (long long)real_ms);
 }
 #endif
