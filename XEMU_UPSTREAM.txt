@@ -1,3 +1,26 @@
 xemu upstream: https://github.com/xemu-project/xemu
 vendored commit: 92407546f45cf20f207a9facc89f515bf1a6c1c2
 vendored summary: ci: bump softprops/action-gh-release from 3.0.0 to 3.0.1
+
+We do not re-vendor the full upstream tree; relevant commits since the
+line above are cherry-picked individually in tranches (see git log for
+"Sync upstream" commits) and reviewed for Android/Vulkan relevance
+first, since most upstream traffic is x86-64/D3D/CI-only.
+
+audited through: fc13b78060ffb3d64d435cbcec96c51bbfbf08ef
+audited summary: apu: Disable DSP JIT by default for first release
+audited date: 2026-08-26
+
+Every commit in vendored..audited has been triaged:
+- applied: bff2145f (apu, tranche 1), fc13b780 (config_spec.yml,
+  tranche 1), cbffb57d (nv2a/vk surface filtering, tranche 2)
+- skipped, CI-only (.github/workflows/*): 15 commits, no effect on
+  the built binary
+- skipped, dead on Android: 9b5a914f, 4d6bfda4 -- touch
+  hw/xbox/nv2a/pgraph/gl/shaders.c, which pgraph/meson.build never
+  compiles on Android (host_os == 'android' skips subdir('gl'))
+- pending, toolchain (not yet a tranche): 111685a2/8a1e10f0 (bump
+  subprojects/glslang.wrap), 295c13e9 (bump
+  subprojects/SPIRV-Reflect.wrap) -- deliberately not bundled with a
+  code tranche so a build break there can't be confused with a code
+  regression
