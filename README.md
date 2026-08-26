@@ -90,15 +90,51 @@ android/app/build/outputs/apk/debug/app-debug.apk
 
 ## Core Rebuild Notes
 
-The project includes scripts under `tools/` for configuring and rebuilding the vendored xemu core, including WSL-oriented helpers. This path is still developer-facing and is not yet integrated into `gradlew assembleDebug`.
+The vendored xemu core can be fully rebuilt from this repository alone, without
+any external state. This is required whenever the core sources change (e.g.
+when applying upstream xemu commits).
 
-Current expected flow after changing the core:
+Requirements:
 
-```text
-1. rebuild libxemu-core-i386.so from xemu/
-2. copy the rebuilt library into android/app/src/main/jniLibs/arm64-v8a/
-3. rebuild the APK with Gradle
+- Windows with WSL2 and Ubuntu 24.04 (`wsl --install -d Ubuntu-24.04`)
+- ~10 GB free disk space in the WSL Linux filesystem
+- Internet access (first run downloads the Linux NDK ~664 MB, vcpkg and all
+  meson subprojects)
+- Inside WSL: `sudo apt-get install -y git curl unzip rsync cmake ninja-build
+  python3 pkg-config build-essential`
+
+Rebuild (from PowerShell, replace the path with your checkout location):
+
+```powershell
+# one-time: keep a WSL session alive so background builds survive
+Start-Process pwsh -WindowStyle Hidden -ArgumentList '-NoProfile','-Command',
+  'wsl -e bash -lc ''sleep 14400'''
+
+# launch the build in the background and follow the log
+wsl -e bash -lc 'setsid nohup bash /mnt/c/<path>/tools/wsl-rebuild-core.sh \
+  > $HOME/xog-rebuild.log 2>&1 < /dev/null &'
+wsl -e bash -lc 'tail -f $HOME/xog-rebuild.log'
 ```
+
+First run takes about one hour (NDK download, vcpkg builds of
+glib/pixman/libsamplerate for `arm64-android`, full compile). Later runs are
+incremental and take minutes. When it finishes, the fresh libraries are already
+installed into `android/app/src/main/jniLibs/arm64-v8a/`; then just rebuild the
+APK with Gradle.
+
+Notes:
+
+- All heavy build state lives inside the WSL home directory (`~/xog-deps`,
+  `~/xog-src`, `~/xog-build-android-aarch64`) and is safe to delete at any time;
+  the next run recreates it. The repository tree itself is never modified by
+  the script.
+- `xemu/subprojects/volk/meson.build` is intentionally vendored in this
+  repository (upstream volk ships none) because `meson.build` consumes volk as
+  a plain meson subproject exposing `volk_dep` as a PIC static library.
+- The script pre-fetches every meson wrap subproject at its pinned revision:
+  meson's own wrap fetch has been observed to produce truncated checkouts on
+  some setups. It also exports `CMAKE` explicitly because meson does not scan
+  `PATH` for cmake.
 
 ## License
 
