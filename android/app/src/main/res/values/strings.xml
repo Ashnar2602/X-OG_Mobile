@@ -34,9 +34,20 @@
     <string name="resume_game">Resume game</string>
     <string name="stay_paused">Stay paused</string>
     <string name="quit_game">Quit game</string>
+    <string name="show_home">Show Home</string>
     <string name="idle_title">X-OG Mobile</string>
     <string name="idle_description">X-OG Mobile is an experimental original Xbox emulator for Android. This build is still a proof of concept, but it is fully usable for basic gaming with video output, physical controller input, audio playback, game library scanning, and app-private system file setup. The emulation core is based on xemu master commit 92407546f45c from 2026-06-21.</string>
     <string name="toggle_setup_hide">Hide Home</string>
     <string name="toggle_library_hide">Hide Library</string>
     <string name="toggle_setup_show">Home</string>
+    <string name="edit_touch_controls">Edit touch controls</string>
+    <string name="touch_editor_no_selection">Tap a control to select. Long-press to add more. Drag to move.</string>
+    <string name="touch_editor_selection_one">Selected: %1$s</string>
+    <string name="touch_editor_selection_many">Selected: %1$d controls</string>
+    <string name="label_size">Size</string>
+    <string name="label_abxy_button_size">Button size</string>
+    <string name="label_opacity">Opacity</string>
+    <string name="label_spacing">Spacing</string>
+    <string name="reset_layout">Reset layout</string>
+    <string name="done">Done</string>
 </resources>

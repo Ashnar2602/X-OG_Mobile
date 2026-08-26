@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@android:color/black">
+
+    <emu.xbox.og.TouchControllerView
+        android:id="@+id/editorTouchView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <!-- Compact, top-anchored so it never covers the bottom controls (sticks,
+         ABXY, dpad, Back/Pause/Start) that the player needs to tap to select. -->
+    <LinearLayout
+        android:id="@+id/editorPanel"
+        android:layout_width="260dp"
+        android:layout_height="210dp"
+        android:layout_gravity="top|center_horizontal"
+        android:layout_marginTop="8dp"
+        android:background="#DD1A2229"
+        android:orientation="vertical"
+        android:padding="10dp">
+
+        <TextView
+            android:id="@+id/editorSelectionLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/touch_editor_no_selection"
+            android:textColor="@color/text"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_marginTop="6dp"
+            android:layout_weight="1">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_size"
+                    android:textColor="@color/muted"
+                    android:textSize="11sp" />
+
+                <SeekBar
+                    android:id="@+id/sizeSeek"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200" />
+
+                <TextView
+                    android:id="@+id/abxyButtonSizeLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_abxy_button_size"
+                    android:textColor="@color/muted"
+                    android:textSize="11sp"
+                    android:visibility="gone" />
+
+                <SeekBar
+                    android:id="@+id/abxyButtonSizeSeek"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_opacity"
+                    android:textColor="@color/muted"
+                    android:textSize="11sp" />
+
+                <SeekBar
+                    android:id="@+id/opacitySeek"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="100" />
+
+                <TextView
+                    android:id="@+id/spacingLabel"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/label_spacing"
+                    android:textColor="@color/muted"
+                    android:textSize="11sp"
+                    android:visibility="gone" />
+
+                <SeekBar
+                    android:id="@+id/spacingSeek"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:max="200"
+                    android:visibility="gone" />
+            </LinearLayout>
+        </ScrollView>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/resetLayoutButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="11sp"
+                android:text="@string/reset_layout" />
+
+            <Button
+                android:id="@+id/doneEditingButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:textSize="11sp"
+                android:text="@string/done" />
+        </LinearLayout>
+    </LinearLayout>
+</FrameLayout>

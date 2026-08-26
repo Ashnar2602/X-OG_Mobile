@@ -100,6 +100,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     private View settingsControls;
     private View infoFrame;
     private Button togglePanelButton;
+    private Button showHomeButton;
     private Button filesTabButton;
     private Button settingsTabButton;
     private Spinner rendererSpinner;
@@ -132,10 +133,10 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     private ImageView gameInfoCover;
     private TextView gameInfoDescription;
     private TextView gameInfoCredits;
-    private Button pauseButton;
     private View pauseOverlay;
     private View idleOverlay;
     private TextView fpsCounter;
+    private TouchControllerView touchController;
     private Handler uiHandler;
     private final Runnable idleAutoPauseRunnable = () -> {
         if (NativeBridge.nativeIsRunning() && !emulationPaused) {
@@ -207,6 +208,7 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         libraryStatusText = findViewById(R.id.libraryStatusText);
         gameList = findViewById(R.id.gameList);
         togglePanelButton = findViewById(R.id.togglePanelButton);
+        showHomeButton = findViewById(R.id.showHomeButton);
         filesTabButton = findViewById(R.id.filesTabButton);
         settingsTabButton = findViewById(R.id.settingsTabButton);
         rendererSpinner = findViewById(R.id.rendererSpinner);
@@ -222,9 +224,8 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         gameInfoCover = findViewById(R.id.gameInfoCover);
         gameInfoDescription = findViewById(R.id.gameInfoDescription);
         gameInfoCredits = findViewById(R.id.gameInfoCredits);
-        TouchControllerView touch = findViewById(R.id.touchController);
-        touch.setListener(this);
-        pauseButton = findViewById(R.id.pauseButton);
+        touchController = findViewById(R.id.touchController);
+        touchController.setListener(this);
         pauseOverlay = findViewById(R.id.pauseOverlay);
         idleOverlay = findViewById(R.id.idleOverlay);
         fpsCounter = findViewById(R.id.fpsCounter);
@@ -238,9 +239,9 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         Button launch = findViewById(R.id.launchButton);
         launch.setOnClickListener(v -> launchEmulator());
         togglePanelButton.setOnClickListener(v -> handleTogglePanelButton());
-        pauseButton.setOnClickListener(v -> handlePauseButton());
         findViewById(R.id.resumeYesButton).setOnClickListener(v -> requestResume("Resume confirmed."));
         findViewById(R.id.resumeNoButton).setOnClickListener(v -> hidePauseOverlay());
+        showHomeButton.setOnClickListener(v -> handleTogglePanelButton());
         findViewById(R.id.quitGameButton).setOnClickListener(v -> quitGameToHome());
         filesTabButton.setOnClickListener(v -> showFilesTab(true));
         settingsTabButton.setOnClickListener(v -> showFilesTab(false));
@@ -251,6 +252,8 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         bindSettingsControls();
         findViewById(R.id.stopButton).setOnClickListener(v -> stopEmulator());
         findViewById(R.id.ejectDiscButton).setOnClickListener(v -> ejectDiscSelection());
+        findViewById(R.id.editTouchControlsButton).setOnClickListener(
+                v -> startActivity(new Intent(this, TouchLayoutEditorActivity.class)));
 
         appendLog(NativeBridge.nativeInit(
                 getFilesDir().getAbsolutePath(),
@@ -1341,7 +1344,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         if (result.startsWith("xemu core launched") || result.startsWith("xemu core is already running")) {
             emulationPaused = false;
             hidePauseOverlay();
-            updatePauseUi();
             updateEmulationUi();
             scheduleIdleAutoPause();
             setSetupPanelVisible(false);
@@ -1371,7 +1373,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
                 cancelIdleAutoPause();
                 emulationPaused = false;
                 hidePauseOverlay();
-                updatePauseUi();
                 updateEmulationUi();
                 if (returnHome) {
                     showFilesTab(true);
@@ -1420,7 +1421,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         if (reason != null && !reason.isEmpty()) {
             appendLog(reason);
         }
-        updatePauseUi();
         if (showOverlay) {
             showPauseOverlay();
         }
@@ -1430,7 +1430,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         if (!NativeBridge.nativeIsRunning()) {
             hidePauseOverlay();
             emulationPaused = false;
-            updatePauseUi();
             return;
         }
         if (emulationPaused) {
@@ -1441,7 +1440,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
             appendLog(reason);
         }
         hidePauseOverlay();
-        updatePauseUi();
         noteGameInputActivity();
     }
 
@@ -1453,14 +1451,13 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         pauseOverlay.setVisibility(View.GONE);
     }
 
-    private void updatePauseUi() {
-        pauseButton.setText(emulationPaused ? R.string.resume : R.string.pause);
-    }
-
     private void updateEmulationUi() {
         boolean running = NativeBridge.nativeIsRunning();
-        pauseButton.setVisibility(running ? View.VISIBLE : View.GONE);
         idleOverlay.setVisibility(running ? View.GONE : View.VISIBLE);
+        touchController.setVisibility(running ? View.VISIBLE : View.GONE);
+        // The touch controller's own Pause button and the pause menu's Show
+        // Home entry cover what this used to do; keep it for pre-game nav.
+        togglePanelButton.setVisibility(running ? View.GONE : View.VISIBLE);
     }
 
     private void noteGameInputActivity() {
@@ -1524,10 +1521,13 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
     private void updateTogglePanelButton() {
         if (libraryPanelVisible) {
             togglePanelButton.setText(R.string.toggle_library_hide);
+            showHomeButton.setText(R.string.toggle_library_hide);
         } else if (setupPanelVisible) {
             togglePanelButton.setText(R.string.toggle_setup_hide);
+            showHomeButton.setText(R.string.toggle_setup_hide);
         } else {
             togglePanelButton.setText(R.string.toggle_setup_show);
+            showHomeButton.setText(R.string.show_home);
         }
     }
 
@@ -1636,7 +1636,6 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         updateEmulationUi();
         if (lifecyclePausedCore && NativeBridge.nativeIsRunning()) {
             showPauseOverlay();
-            updatePauseUi();
         }
         lifecyclePausedCore = false;
         renderSurface.post(this::updateNativeSurfaceSize);
@@ -1759,6 +1758,12 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
         }
         noteGameInputActivity();
         NativeBridge.nativeSetAxis(axis, value);
+    }
+
+    @Override
+    public void onTouchPause() {
+        noteGameInputActivity();
+        handlePauseButton();
     }
 
     private interface SpinnerSelectionHandler {
