@@ -50,6 +50,12 @@ std::array<float, 8> g_axes{};
 std::string g_files_dir;
 std::string g_cache_dir;
 std::string g_native_lib_dir;
+// Duplicated SAF file descriptor for the game disc. The core consumes it via
+// QEMU "-add-fd" (the fd number is embedded in the launch args); the fdset
+// keeps its own internal duplicate, and parse_add_fd closes the passed fd
+// right after registering it, so this value must never be closed again here.
+int g_disc_dup_fd = -1;
+static constexpr int kDiscFdSetId = 100;
 pid_t g_xemu_pid = -1;
 std::thread g_xemu_thread;
 std::atomic<bool> g_xemu_running{false};
@@ -288,7 +294,8 @@ extern "C" JNIEXPORT jstring JNICALL
 Java_emu_xbox_og_NativeBridge_nativeLaunch(JNIEnv *env, jclass, jstring mcpx, jstring bios,
                                            jstring hdd, jstring disc, jstring renderer,
                                            jint audio_volume, jboolean audio_muted,
-                                           jboolean skip_boot_animation, jstring avpack) {
+                                           jboolean skip_boot_animation, jstring avpack,
+                                           jint disc_fd) {
     std::unique_lock<std::mutex> guard(g_lock);
     join_finished_core_locked(guard);
 
@@ -312,6 +319,24 @@ Java_emu_xbox_og_NativeBridge_nativeLaunch(JNIEnv *env, jclass, jstring mcpx, js
     ensure_dir(config_dir);
     ensure_dir(data_dir);
 
+    // The disc image is usually reachable only through the already-open SAF
+    // descriptor: reopening "/proc/self/fd/N" by path is denied by scoped
+    // storage on modern Android (EACCES from MediaProvider/FUSE). Duplicate
+    // the descriptor here and hand it to the core through QEMU's "-add-fd" +
+    // "/dev/fdset/N" mechanism, so the block layer reuses the existing open
+    // file instead of resolving a path. dup() also clears FD_CLOEXEC, which
+    // parse_add_fd() requires.
+    if (disc_fd >= 0) {
+        int dup_fd = dup(static_cast<int>(disc_fd));
+        if (dup_fd < 0) {
+            return ret(env, std::string("Unable to duplicate disc file descriptor: ") +
+                                strerror(errno));
+        }
+        g_disc_dup_fd = dup_fd;
+    } else {
+        g_disc_dup_fd = -1;
+    }
+
     std::vector<std::string> args;
     args.push_back(executable);
     args.push_back("-monitor");
@@ -322,6 +347,15 @@ Java_emu_xbox_og_NativeBridge_nativeLaunch(JNIEnv *env, jclass, jstring mcpx, js
     args.push_back("none");
     args.push_back("-accel");
     args.push_back("tcg");
+    if (g_disc_dup_fd >= 0) {
+        args.push_back("-add-fd");
+        args.push_back("fd=" + std::to_string(g_disc_dup_fd) +
+                       ",set=" + std::to_string(kDiscFdSetId));
+        args.push_back("-dvd_path");
+        args.push_back("/dev/fdset/" + std::to_string(kDiscFdSetId));
+        LOGI("Disc passed via duplicated fd=%d as /dev/fdset/%d",
+             g_disc_dup_fd, kDiscFdSetId);
+    }
 
     setenv("HOME", g_files_dir.c_str(), 1);
     setenv("XDG_CONFIG_HOME", config_dir.c_str(), 1);

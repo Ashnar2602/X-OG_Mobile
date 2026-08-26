@@ -1288,7 +1288,8 @@ public class MainActivity extends Activity implements TextureView.SurfaceTexture
                 settingInt(PREF_AUDIO_VOLUME, 100),
                 settingBoolean(PREF_AUDIO_MUTED, false),
                 settingBoolean(PREF_SKIP_BOOT, false),
-                settingString(PREF_AVPACK, "hdtv"));
+                settingString(PREF_AVPACK, "hdtv"),
+                launchDiscPfd != null ? launchDiscPfd.getFd() : -1);
         appendLog(result);
         if (result.startsWith("xemu core launched") || result.startsWith("xemu core is already running")) {
             emulationPaused = false;

@@ -16,7 +16,7 @@ final class NativeBridge {
     static native void nativeSurfaceDestroyed();
     static native String nativeLaunch(String mcpx, String bios, String hdd, String disc,
                                       String renderer, int audioVolume, boolean audioMuted,
-                                      boolean skipBootAnimation, String avpack);
+                                      boolean skipBootAnimation, String avpack, int discFd);
     static native void nativeSetButton(int button, boolean pressed);
     static native void nativeSetAxis(int axis, float value);
     static native void nativeSetAudio(int volume, boolean muted);
